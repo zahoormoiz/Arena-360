@@ -8,7 +8,7 @@ import { BookingProvider } from "@/context/BookingContext";
 import { AuthProvider } from '@/context/AuthContext';
 import Header from '@/components/Header';
 import { Analytics } from '@vercel/analytics/react';
-
+import { SpeedInsights } from "@vercel/speed-insights/next";
 // OPTIMIZED: Reduced font weights for faster loading
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -53,8 +53,9 @@ export default function RootLayout({
             {children}
             <ConditionalShell><BottomNav /></ConditionalShell>
           </BookingProvider>
+          <Analytics />
+          <SpeedInsights />
         </AuthProvider>
-        <Analytics />
       </body>
     </html>
   );

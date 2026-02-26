@@ -23,7 +23,8 @@ async function listSports() {
         console.log('Connected to MongoDB');
 
         const sports = await Sport.find({}).sort({ sortOrder: 1 });
-        console.log('Current Sports:', sports.map(s => ({ id: s._id, name: s.name, sortOrder: s.sortOrder })));
+        require('fs').writeFileSync('sports.json', JSON.stringify(sports.map(s => ({ id: s._id, name: s.name, sortOrder: s.sortOrder })), null, 2));
+        console.log('Saved to sports.json');
 
     } catch (error) {
         console.error('Error:', error);
