@@ -31,6 +31,8 @@ export default function Footer() {
                             <li><Link href="/book" className="hover:text-primary transition-colors">Indoor Cricket</Link></li>
                             <li><Link href="/book" className="hover:text-primary transition-colors">Futsal</Link></li>
                             <li><Link href="/book" className="hover:text-primary transition-colors">Padel Tennis</Link></li>
+                            <li><Link href="/book" className="hover:text-primary transition-colors">Badminton</Link></li>
+                            <li><Link href="/book" className="hover:text-primary transition-colors">Volleyball</Link></li>
                         </ul>
                     </div>
 
