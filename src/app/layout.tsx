@@ -7,6 +7,7 @@ import ConditionalShell from '@/components/ConditionalShell';
 import { BookingProvider } from "@/context/BookingContext";
 import { AuthProvider } from '@/context/AuthContext';
 import Header from '@/components/Header';
+import { Analytics } from '@vercel/analytics/react';
 
 // OPTIMIZED: Reduced font weights for faster loading
 const outfit = Outfit({
@@ -53,6 +54,7 @@ export default function RootLayout({
             <ConditionalShell><BottomNav /></ConditionalShell>
           </BookingProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
