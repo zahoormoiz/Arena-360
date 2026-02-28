@@ -32,12 +32,12 @@ export default function BottomNav() {
             icon: Home,
             active: pathname === '/',
         },
+        // Pricing
         {
-            name: 'Bookings',
-            href: '/my-bookings',
-            icon: Ticket,
-            active: pathname.startsWith('/my-bookings'),
-            protected: true,
+            name: 'Pricing',
+            href: '/pricing',
+            icon: Tag,
+            active: pathname.startsWith('/pricing'),
         },
         // Main Booking CTA
         {
@@ -47,12 +47,12 @@ export default function BottomNav() {
             active: pathname.startsWith('/book'),
             isCTA: true,
         },
-        // Pricing
         {
-            name: 'Pricing',
-            href: '/pricing',
-            icon: Tag,
-            active: pathname.startsWith('/pricing'),
+            name: 'Bookings',
+            href: '/my-bookings',
+            icon: Ticket,
+            active: pathname.startsWith('/my-bookings'),
+            protected: true,
         },
         // Dynamic Profile / Login
         user ? {
