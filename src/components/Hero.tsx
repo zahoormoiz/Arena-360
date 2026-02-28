@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 
 export default function Hero() {
     return (
-        <div className="relative h-[85vh] w-full overflow-hidden bg-background flex flex-col items-center justify-center">
+        <div className="relative h-[85vh] w-full overflow-hidden flex flex-col items-center justify-center">
             {/* Background Image/Video Overlay */}
             <div className="absolute inset-0 z-0 select-none">
                 <Image

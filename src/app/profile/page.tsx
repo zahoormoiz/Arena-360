@@ -18,11 +18,11 @@ export default function ProfilePage() {
     }, [user, loading, router]);
 
     if (loading || !user) {
-        return <div className="min-h-screen bg-black" />;
+        return <div className="min-h-screen" />;
     }
 
     return (
-        <div className="min-h-screen bg-black pt-24 pb-32 px-6 safe-area-bottom">
+        <div className="min-h-screen pt-24 pb-32 px-6 safe-area-bottom">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

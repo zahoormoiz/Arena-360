@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function PricingPage() {
     return (
-        <main className="min-h-screen bg-[#0a0a0a] pt-28 pb-16">
+        <main className="min-h-screen pt-28 pb-16">
             <div className="max-w-5xl mx-auto px-6">
                 <div className="text-center mb-12">
                     <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-4">
