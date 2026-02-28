@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, CalendarDays, User, Ticket, Tag, LogIn } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 interface NavItem {
     name: string;
@@ -92,13 +91,11 @@ export default function BottomNav() {
                                 href={item.href}
                                 className="flex flex-col items-center justify-center -mt-8"
                             >
-                                <motion.div
-                                    className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-black shadow-[0_0_20px_rgba(34,197,94,0.6)] border-[6px] border-[#0D0D0D] z-10"
-                                    whileTap={{ scale: 0.95 }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                <div
+                                    className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-black shadow-[0_0_20px_rgba(34,197,94,0.6)] border-[6px] border-[#0D0D0D] z-10 active:scale-95 transition-transform"
                                 >
                                     <Icon size={28} strokeWidth={2.5} />
-                                </motion.div>
+                                </div>
                                 <span className="text-[10px] font-bold text-primary mt-1 tracking-wide">
                                     {item.name}
                                 </span>
@@ -118,10 +115,8 @@ export default function BottomNav() {
                             )}
                         >
                             {isActive && (
-                                <motion.span
-                                    layoutId="bottomNavBubble"
-                                    className="absolute -top-2 w-8 h-1 bg-primary rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)]"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                <span
+                                    className="absolute -top-2 w-8 h-1 bg-primary rounded-full shadow-[0_0_10px_rgba(34,197,94,0.5)] transition-all duration-300"
                                 />
                             )}
 

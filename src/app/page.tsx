@@ -7,7 +7,8 @@ import LocationContact from '@/components/LocationContact';
 import Footer from '@/components/Footer';
 import WhyUsSection from '@/components/WhyUsSection';
 
-export const dynamic = 'force-dynamic';
+// ISR: Regenerate homepage every 60 seconds (CDN-cached between regenerations)
+export const revalidate = 60;
 
 export default function Home() {
   return (

@@ -1,7 +1,4 @@
-'use client';
-
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { CalendarDays, Clock, Shield, Zap, ArrowRight } from 'lucide-react';
 
 const highlights = [
@@ -35,25 +32,16 @@ export default function SportsHighlight() {
 
                     <div className="max-w-xl mx-auto lg:mx-0 relative z-10 space-y-8 text-center lg:text-left items-center lg:items-start flex flex-col">
                         {/* Badge */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: '-50px' }}
-                            transition={{ duration: 0.5 }}
-                        >
+                        <div className="animate-fade-up">
                             <span className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold uppercase tracking-[0.2em] text-primary shadow-sm">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                                 Premium Facility
                             </span>
-                        </motion.div>
+                        </div>
 
                         {/* Headline */}
-                        <motion.h2
-                            className="text-4xl sm:text-5xl lg:text-6xl font-heading font-bold text-text-primary leading-[1.1] tracking-tight"
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: '-50px' }}
-                            transition={{ duration: 0.6, delay: 0.1 }}
+                        <h2
+                            className="text-4xl sm:text-5xl lg:text-6xl font-heading font-bold text-text-primary leading-[1.1] tracking-tight animate-fade-up [animation-delay:100ms]"
                         >
                             <span className="text-text-secondary block text-xl sm:text-2xl mb-2 font-medium tracking-normal">Experience the Best</span>
                             Multiple Sports.
@@ -61,26 +49,18 @@ export default function SportsHighlight() {
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-500 to-emerald-700">
                                 One Arena.
                             </span>
-                        </motion.h2>
+                        </h2>
 
                         {/* Subheading */}
-                        <motion.p
-                            className="text-text-secondary text-base sm:text-lg leading-relaxed max-w-md mx-auto lg:mx-0"
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: '-50px' }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
+                        <p
+                            className="text-text-secondary text-base sm:text-lg leading-relaxed max-w-md mx-auto lg:mx-0 animate-fade-up [animation-delay:200ms]"
                         >
                             Book <strong>futsal</strong>, <strong>indoor cricket</strong>, <strong>padel</strong>, <strong>badminton</strong>, and <strong>volleyball</strong> — all under one roof. Professional courts, seamless booking, and a premium environment for athletes.
-                        </motion.p>
+                        </p>
 
                         {/* Highlights Grid */}
-                        <motion.div
-                            className="grid grid-cols-2 gap-x-6 gap-y-5 text-left w-full"
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: '-50px' }}
-                            transition={{ duration: 0.5, delay: 0.3 }}
+                        <div
+                            className="grid grid-cols-2 gap-x-6 gap-y-5 text-left w-full animate-fade-up [animation-delay:300ms]"
                         >
                             {highlights.map((item) => {
                                 const Icon = item.icon;
@@ -98,30 +78,21 @@ export default function SportsHighlight() {
                                     </div>
                                 );
                             })}
-                        </motion.div>
+                        </div>
 
                         {/* CTA */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true, margin: '-50px' }}
-                            transition={{ duration: 0.5, delay: 0.4 }}
-                        >
+                        <div className="animate-fade-up [animation-delay:400ms]">
                             <Link
                                 href="/book"
                                 className="inline-flex items-center justify-center gap-2 bg-surface hover:bg-surface-elevated text-text-primary border border-border hover:border-text-secondary font-bold px-8 py-4 rounded-full text-sm uppercase tracking-widest transition-all duration-300"
                             >
                                 View Sports
                             </Link>
-                        </motion.div>
+                        </div>
 
                         {/* Stats */}
-                        <motion.div
-                            className="hidden lg:flex flex-row gap-4"
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.6, delay: 0.5 }}
+                        <div
+                            className="hidden lg:flex flex-row gap-4 animate-fade-up [animation-delay:500ms]"
                         >
                             {[
                                 { number: '5', label: 'Sports' },
@@ -136,7 +107,7 @@ export default function SportsHighlight() {
                                     <span className="text-xs text-text-secondary uppercase tracking-wider font-semibold">{stat.label}</span>
                                 </div>
                             ))}
-                        </motion.div>
+                        </div>
                     </div>
                 </div>
             </div>

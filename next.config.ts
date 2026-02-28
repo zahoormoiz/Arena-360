@@ -18,6 +18,26 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: securityHeaders,
       },
+      // Cache public API routes at CDN level
+      {
+        source: '/api/sports',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=600' },
+        ],
+      },
+      {
+        source: '/api/availability',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=60' },
+        ],
+      },
+      // Immutable static assets
+      {
+        source: '/:path(.+\\.(?:jpg|jpeg|png|webp|avif|ico|svg)$)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
     ];
   },
 

@@ -12,7 +12,7 @@ export default function Hero() {
                     alt="Arena Background"
                     fill
                     priority
-                    quality={90}
+                    quality={75}
                     /* MOBILE BACKGROUND POSITION: Change '50% 60%' (x y) below to move image on mobile. Keep md:object-[...] for desktop. */
                     className="object-cover object-center md:object-[50%_60%] origin-[50%_50%] scale-[1.15] md:origin-center md:scale-100 opacity-100"
                     sizes="100vw"
@@ -103,7 +103,7 @@ export default function Hero() {
                                 fill
                                 className="object-contain drop-shadow-[0_0_80px_rgba(34,197,94,0.5)]"
                                 sizes="(min-width: 769px) 600px, 1px"
-                                priority
+                                loading="eager"
                             />
                         </div>
                     </div>
