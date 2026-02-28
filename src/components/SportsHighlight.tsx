@@ -13,7 +13,7 @@ const highlights = [
 
 export default function SportsHighlight() {
     return (
-        <section className="relative w-full overflow-hidden lg:mt-24 z-0">
+        <section className="relative w-full overflow-hidden lg:mt-8 z-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[400px] md:min-h-[500px] lg:min-h-[700px]">
 
                 {/* ── Left Column: Image ── */}
