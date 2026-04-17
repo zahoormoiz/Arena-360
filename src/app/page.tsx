@@ -1,6 +1,7 @@
 import Hero from '@/components/Hero';
 import SportsSection from '@/components/SportsSection';
 import SportsHighlight from '@/components/SportsHighlight';
+
 import Testimonials from '@/components/Testimonials';
 import Gallery from '@/components/Gallery';
 import LocationContact from '@/components/LocationContact';
@@ -18,6 +19,7 @@ export default function Home() {
       <SportsHighlight />
 
       <SportsSection />
+
 
       <WhyUsSection />
 

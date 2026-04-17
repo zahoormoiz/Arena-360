@@ -7,6 +7,7 @@ import ConditionalShell from '@/components/ConditionalShell';
 import { BookingProvider } from "@/context/BookingContext";
 import { AuthProvider } from '@/context/AuthContext';
 import Header from '@/components/Header';
+import ChatWidget from '@/components/ChatWidgetLazy';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 // OPTIMIZED: Reduced font weights for faster loading
@@ -55,6 +56,7 @@ export default function RootLayout({
           </BookingProvider>
           <Analytics />
           <SpeedInsights />
+          <ChatWidget />  {/* Lazy-loaded: zero impact on initial page load */}
         </AuthProvider>
       </body>
     </html>
