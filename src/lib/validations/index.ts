@@ -5,6 +5,9 @@
 
 import { z } from 'zod';
 
+const chatLanguageSchema = z.enum(['auto', 'en', 'ur']);
+const chatRoleSchema = z.enum(['user', 'assistant']);
+
 // ======================
 // AUTH SCHEMAS
 // ======================
@@ -161,6 +164,34 @@ export const settingsUpdateSchema = z.object({
 });
 
 // ======================
+// CHAT SCHEMAS
+// ======================
+
+export const chatMessageSchema = z.object({
+    id: z.string().min(1).max(80).optional(),
+    role: chatRoleSchema,
+    content: z.string().trim().min(1).max(2000),
+});
+
+export const chatRequestSchema = z.object({
+    sessionId: z.string().trim().min(8).max(120).optional(),
+    visitorId: z.string().trim().min(12).max(120),
+    message: z.string().trim().min(1).max(1500),
+    pathname: z.string().trim().max(160).optional().default('/'),
+    locale: z.string().trim().max(24).optional(),
+    userName: z.string().trim().max(60).optional(),
+    preferredLanguage: chatLanguageSchema.optional().default('auto'),
+    messages: z.array(chatMessageSchema).max(20).optional().default([]),
+});
+
+export const chatHistoryQuerySchema = z.object({
+    sessionId: z.string().trim().min(8).max(120).optional(),
+    visitorId: z.string().trim().min(12).max(120).optional(),
+    q: z.string().trim().max(120).optional(),
+    limit: z.coerce.number().int().min(1).max(20).optional().default(8),
+});
+
+// ======================
 // TYPE EXPORTS
 // ======================
 
@@ -175,3 +206,6 @@ export type RescheduleInput = z.infer<typeof rescheduleSchema>;
 export type WalkInBookingInput = z.infer<typeof walkInBookingSchema>;
 export type BlockedSlotInput = z.infer<typeof blockedSlotSchema>;
 export type SettingsUpdateInput = z.infer<typeof settingsUpdateSchema>;
+export type ChatMessageInput = z.infer<typeof chatMessageSchema>;
+export type ChatRequestInput = z.infer<typeof chatRequestSchema>;
+export type ChatHistoryQueryInput = z.infer<typeof chatHistoryQuerySchema>;

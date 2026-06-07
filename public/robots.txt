@@ -1,0 +1,12 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes from crawlers
+Disallow: /admin
+Disallow: /api/
+Disallow: /my-bookings
+Disallow: /profile
+
+# Sitemap
+Sitemap: https://arena360.pk/sitemap.xml

@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface LoginScreenProps {
     onLogin: (e: React.FormEvent, email: string, password: string) => void;
+    error?: string | null;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, error }: LoginScreenProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
@@ -23,6 +24,13 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
                 <h1 className="text-2xl font-bold text-white text-center mb-2">Admin Access</h1>
                 <p className="text-gray-400 text-center mb-8">Please enter your credentials to continue</p>
+
+                {error && (
+                    <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{error}</span>
+                    </div>
+                )}
 
                 <form onSubmit={(e) => onLogin(e, email, password)} className="space-y-4">
                     <div className="relative">
@@ -57,3 +65,4 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         </div>
     );
 }
+

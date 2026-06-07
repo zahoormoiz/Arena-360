@@ -30,13 +30,31 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: "Arena360 | Premium Indoor Sports Arena",
   description: "Lahore's Premier Indoor Arena for Cricket, Futsal, Padel, Badminton & Volleyball. Book your slot 24/7.",
+  keywords: ["indoor sports", "arena", "cricket", "futsal", "padel", "booking", "Lahore", "Arena360"],
+  authors: [{ name: "Arena360" }],
+  openGraph: {
+    title: "Arena360 | Premium Indoor Sports Arena",
+    description: "Lahore's Premier Indoor Arena for Cricket, Futsal, Padel, Badminton & Volleyball. Book your slot 24/7.",
+    url: "https://arena360.pk",
+    siteName: "Arena360",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Arena360 | Premium Indoor Sports Arena",
+    description: "Lahore's Premier Indoor Arena for Cricket, Futsal, Padel, Badminton & Volleyball. Book your slot 24/7.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Prevents auto-zoom on inputs
-  userScalable: false,
+  // maximumScale and userScalable removed — blocking zoom violates WCAG 2.1 SC 1.4.4
 };
 
 export default function RootLayout({

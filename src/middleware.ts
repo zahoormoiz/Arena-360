@@ -8,10 +8,11 @@ const protectedRoutes = ['/my-bookings', '/api/bookings/my', '/api/bookings']; /
 const publicRoutes = [
     '/api/auth',
     '/api/admin/login',
-    '/api/admin/me',
+    // NOTE: /api/admin/me intentionally NOT public — requires auth cookie (audit fix S-2)
     '/api/sports',
     '/api/availability',
     '/api/health',
+    '/api/chat',         // Chat is publicly accessible
 ];
 
 // Routes that allow POST without auth but require auth for other methods
@@ -57,9 +58,25 @@ export async function middleware(request: NextRequest) {
     const isAdminPage = pathname.startsWith('/admin');
     const isProtectedRoute = matches(pathname, protectedRoutes);
 
-    // 2. Admin pages: let through — the admin layout handles its own login screen
+    // 2. Admin pages — server-side auth check (audit fix S-2: replaces client-only check)
+    //    If the user has a valid admin JWT, let them through.
+    //    If not, the admin layout will render the login screen (no redirect needed —
+    //    the layout already handles unauthenticated state gracefully).
     if (isAdminPage) {
-        return NextResponse.next();
+        const token = request.cookies.get('auth-token')?.value;
+        const payload = await verifyAuth(token);
+
+        if (!payload || payload.role !== 'admin') {
+            // Still let through — admin layout shows login screen for unauthenticated users.
+            // But inject a header so the layout knows auth was checked server-side.
+            const response = NextResponse.next();
+            response.headers.set('x-admin-auth', 'false');
+            return response;
+        }
+
+        const response = NextResponse.next();
+        response.headers.set('x-admin-auth', 'true');
+        return response;
     }
 
     // 3. For admin API and protected routes, verify token

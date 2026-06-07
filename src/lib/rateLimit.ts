@@ -3,7 +3,7 @@
  * For production, consider using Redis for multi-instance deployments
  */
 
-type RateLimitType = 'login' | 'register' | 'booking';
+type RateLimitType = 'login' | 'register' | 'booking' | 'chat';
 
 interface RateLimitConfig {
     maxAttempts: number;
@@ -19,6 +19,7 @@ const rateLimitConfigs: Record<RateLimitType, RateLimitConfig> = {
     login: { maxAttempts: 5, windowMs: 15 * 60 * 1000 }, // 5 attempts per 15 minutes
     register: { maxAttempts: 3, windowMs: 60 * 60 * 1000 }, // 3 attempts per hour
     booking: { maxAttempts: 10, windowMs: 60 * 1000 }, // 10 attempts per minute
+    chat: { maxAttempts: 20, windowMs: 60 * 1000 }, // 20 messages per minute
 };
 
 const rateLimitStore = new Map<string, RateLimitEntry>();

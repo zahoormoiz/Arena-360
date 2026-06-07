@@ -52,8 +52,11 @@ export default function AdminLayout({
         }
     };
 
+    const [loginError, setLoginError] = useState<string | null>(null);
+
     const handleLogin = async (e: React.FormEvent, email: string, password: string) => {
         e.preventDefault();
+        setLoginError(null);
         try {
             const res = await fetch('/api/admin/login', {
                 method: 'POST',
@@ -64,10 +67,10 @@ export default function AdminLayout({
                 setIsAuthenticated(true);
             } else {
                 const data = await res.json();
-                alert(data.error || 'Invalid credentials');
+                setLoginError(data.error || 'Invalid credentials');
             }
         } catch (error) {
-            alert('Login error');
+            setLoginError('Network error — please try again.');
         }
     };
 
@@ -87,7 +90,7 @@ export default function AdminLayout({
 
     if (!isAuthenticated) {
         // Create a wrapper for LoginScreen to pass the handler
-        return <LoginWrapper onLogin={handleLogin} />;
+        return <LoginWrapper onLogin={handleLogin} error={loginError} />;
     }
 
     const navItems = [
@@ -183,6 +186,6 @@ export default function AdminLayout({
 }
 
 // Wrapper for admin login
-function LoginWrapper({ onLogin }: any) {
-    return <LoginScreen onLogin={onLogin} />;
+function LoginWrapper({ onLogin, error }: { onLogin: (e: React.FormEvent, email: string, password: string) => void; error: string | null }) {
+    return <LoginScreen onLogin={onLogin} error={error} />;
 }

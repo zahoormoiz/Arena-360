@@ -33,7 +33,10 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 15000);
+        const interval = setInterval(() => {
+            // Only poll when tab is visible (audit fix: saves bandwidth when inactive)
+            if (document.visibilityState === 'visible') fetchData();
+        }, 15000);
         return () => clearInterval(interval);
     }, [period]);
 

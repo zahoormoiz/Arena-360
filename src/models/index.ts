@@ -5,6 +5,7 @@ import PricingRule from './PricingRule';
 import BlockedSlot from './BlockedSlot';
 import SiteConfig from './SiteConfig';
 import AuditLog from './AuditLog';
+import ChatSession from './ChatSession';
 
-export { Booking, Sport, User, PricingRule, BlockedSlot, SiteConfig, AuditLog };
+export { Booking, Sport, User, PricingRule, BlockedSlot, SiteConfig, AuditLog, ChatSession };
 

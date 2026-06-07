@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
 
         return response;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        // Generic message to prevent user enumeration (audit fix ST-3)
         return NextResponse.json(
-            { success: false, error: error.message || 'Login failed' },
+            { success: false, error: 'Invalid email or password' },
             { status: 401 }
         );
     }

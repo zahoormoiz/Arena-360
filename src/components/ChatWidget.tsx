@@ -1,403 +1,855 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
-import { MessageCircle, X, Send, Bot, Sparkles, Phone } from 'lucide-react';
+import {
+    startTransition,
+    useCallback,
+    useDeferredValue,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+    Bot,
+    Globe,
+    History,
+    MessageCircle,
+    Mic,
+    Phone,
+    Plus,
+    Send,
+    Sparkles,
+    X,
+} from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import type {
+    ChatHistoryListItem,
+    ChatIntent,
+    ChatLanguagePreference,
+    ChatSessionPayload,
+    ChatSuggestion,
+} from '@/lib/chat/types';
+import { getSuggestedActions } from '@/lib/chat/suggestions';
+import Toast, { type ToastType } from './ui/Toast';
+import { cn } from '@/lib/utils';
+import ChatHistoryPanel from './chat/ChatHistoryPanel';
+import ChatMessageBubble, { type DisplayMessage } from './chat/ChatMessageBubble';
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
+declare global {
+    interface Window {
+        SpeechRecognition?: new () => BrowserSpeechRecognition;
+        webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+    }
 }
+
+interface SpeechRecognitionResultLike {
+    0?: {
+        transcript?: string;
+    };
+}
+
+interface SpeechRecognitionEventLike {
+    results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface BrowserSpeechRecognition {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    maxAlternatives: number;
+    start: () => void;
+    stop: () => void;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: (() => void) | null;
+    onend: (() => void) | null;
+}
+
+const STORAGE_KEYS = {
+    visitor: 'arena360-chat-visitor-id',
+    session: 'arena360-chat-session-id',
+    language: 'arena360-chat-language',
+};
 
 const WHATSAPP_URL = 'https://wa.me/923235192477?text=Hi%20Arena360%2C%20I%20need%20help!';
 
-const QUICK_REPLIES = [
-  { label: '📅 How to book?', value: 'How do I book a court at Arena360?' },
-  { label: '🕐 Timings', value: 'What are the timings and opening hours?' },
-  { label: '⚽ Sports', value: 'What sports are available at Arena360?' },
-  { label: '❌ Cancellations', value: 'How do cancellations and refunds work?' },
-];
+interface ToastState {
+    message: string;
+    type: ToastType;
+    visible: boolean;
+}
 
-const GREETING_MESSAGE: Message = {
-  id: 'greeting',
-  role: 'assistant',
-  content: "Hey there! 👋 Welcome to Arena360! I'm your Arena Assistant — here to help you book courts, answer questions, or handle any support needs. What can I help you with today?",
-  timestamp: new Date(),
-};
+function mapIntentToSuggestions(intent?: ChatIntent) {
+    return getSuggestedActions(intent || 'greeting');
+}
+
+function mapSessionMessages(session: ChatSessionPayload): DisplayMessage[] {
+    return session.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        status: 'sent',
+    }));
+}
+
+function parseSsePayload(rawEvent: string) {
+    const lines = rawEvent.split('\n');
+    let event = 'message';
+    let data = '';
+
+    for (const line of lines) {
+        if (line.startsWith('event:')) {
+            event = line.slice(6).trim();
+        }
+
+        if (line.startsWith('data:')) {
+            data += line.slice(5).trim();
+        }
+    }
+
+    return { event, data };
+}
 
 export default function ChatWidget() {
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showQuickReplies, setShowQuickReplies] = useState(true);
-  const [hasOpened, setHasOpened] = useState(false);
-  const [bubblePulse, setBubblePulse] = useState(true);
+    const pathname = usePathname();
+    const router = useRouter();
+    const { user } = useAuth();
+    const isAdminPage = pathname.startsWith('/admin');
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+    const [isOpen, setIsOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [hasOpened, setHasOpened] = useState(false);
+    const [bubblePulse, setBubblePulse] = useState(true);
+    const [messages, setMessages] = useState<DisplayMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [visitorId, setVisitorId] = useState('');
+    const [preferredLanguage, setPreferredLanguage] = useState<ChatLanguagePreference>('auto');
+    const [activeSuggestions, setActiveSuggestions] = useState<ChatSuggestion[]>(mapIntentToSuggestions('greeting'));
+    const [historySessions, setHistorySessions] = useState<ChatHistoryListItem[]>([]);
+    const [historyQuery, setHistoryQuery] = useState('');
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [isSessionLoading, setIsSessionLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+    const [toast, setToast] = useState<ToastState>({ message: '', type: 'info', visible: false });
+    const [isNearBottom, setIsNearBottom] = useState(true);
+    const [unreadCount, setUnreadCount] = useState(0);
 
-  // Hide on admin pages
-  if (pathname.startsWith('/admin')) return null;
+    const deferredHistoryQuery = useDeferredValue(historyQuery);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+    const messagesRef = useRef<DisplayMessage[]>([]);
 
-  const scrollToBottom = useCallback(() => {
-    // Use setTimeout to ensure DOM has updated before scrolling
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 50);
-  }, []);
+    const showToast = useCallback((message: string, type: ToastType) => {
+        setToast({ message, type, visible: true });
+    }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading, scrollToBottom]);
+    const resizeComposer = useCallback(() => {
+        if (!textareaRef.current) return;
+        textareaRef.current.style.height = '0px';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
+    }, []);
 
-  // Focus input when chat opens (skip on mobile to avoid keyboard jump)
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      const isMobile = window.innerWidth < 768;
-      if (!isMobile) {
-        inputRef.current.focus();
-      }
-    }
-  }, [isOpen]);
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+        if (!isNearBottom && behavior === 'smooth') return;
+        requestAnimationFrame(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior });
+        });
+    }, [isNearBottom]);
 
-  // Stop pulse animation after 10 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => setBubblePulse(false), 10000);
-    return () => clearTimeout(timer);
-  }, []);
+    useEffect(() => {
+        messagesRef.current = messages;
+    }, [messages]);
 
-  // Prevent body scroll when chat is open on mobile
-  useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    if (isOpen && isMobile) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
+    useEffect(() => {
+        const storedVisitorId = localStorage.getItem(STORAGE_KEYS.visitor) || crypto.randomUUID();
+        localStorage.setItem(STORAGE_KEYS.visitor, storedVisitorId);
+        setVisitorId(storedVisitorId);
+
+        const storedSessionId = localStorage.getItem(STORAGE_KEYS.session);
+        if (storedSessionId) {
+            setSessionId(storedSessionId);
+            setHasOpened(true);
+        }
+
+        const storedLanguage = localStorage.getItem(STORAGE_KEYS.language) as ChatLanguagePreference | null;
+        if (storedLanguage === 'auto' || storedLanguage === 'en' || storedLanguage === 'ur') {
+            setPreferredLanguage(storedLanguage);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (sessionId) {
+            localStorage.setItem(STORAGE_KEYS.session, sessionId);
+        } else {
+            localStorage.removeItem(STORAGE_KEYS.session);
+        }
+    }, [sessionId]);
+
+    useEffect(() => {
+        localStorage.setItem(STORAGE_KEYS.language, preferredLanguage);
+    }, [preferredLanguage]);
+
+    useEffect(() => {
+        resizeComposer();
+    }, [input, resizeComposer]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setBubblePulse(false), 12000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        const isMobile = window.innerWidth < 768;
+        document.body.style.overflow = isOpen && isMobile ? 'hidden' : '';
+
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && textareaRef.current && window.innerWidth >= 768) {
+            textareaRef.current.focus();
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (messages.length) {
+            scrollToBottom(messages.length === 1 ? 'auto' : 'smooth');
+        }
+    }, [messages, isStreaming, scrollToBottom]);
+
+    const loadHistory = useCallback(
+        async (query = '') => {
+            if (!visitorId || !isOpen) return;
+
+            setIsHistoryLoading(true);
+
+            try {
+                const params = new URLSearchParams({ visitorId });
+                if (query) params.set('q', query);
+
+                const response = await fetch(`/api/chat/history?${params.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to load chat history');
+                }
+
+                startTransition(() => {
+                    setHistorySessions(data.sessions || []);
+                });
+            } catch {
+                startTransition(() => {
+                    setHistorySessions([]);
+                });
+
+                if (query) {
+                    showToast('History search is temporarily unavailable.', 'warning');
+                }
+            } finally {
+                setIsHistoryLoading(false);
+            }
+        },
+        [isOpen, showToast, visitorId]
+    );
+
+    const loadSession = useCallback(
+        async (targetSessionId: string) => {
+            if (!visitorId || !targetSessionId) return;
+
+            setIsSessionLoading(true);
+
+            try {
+                const params = new URLSearchParams({
+                    sessionId: targetSessionId,
+                    visitorId,
+                });
+                const response = await fetch(`/api/chat/history?${params.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Conversation not found');
+                }
+
+                const session = data.session as ChatSessionPayload;
+
+                setMessages(mapSessionMessages(session));
+                setSessionId(session.sessionId);
+                setActiveSuggestions(mapIntentToSuggestions(session.lastIntent));
+                setIsNearBottom(true);
+            } catch {
+                setMessages([]);
+                setSessionId(null);
+                setActiveSuggestions(mapIntentToSuggestions('greeting'));
+                localStorage.removeItem(STORAGE_KEYS.session);
+                showToast('That conversation could not be restored.', 'warning');
+            } finally {
+                setIsSessionLoading(false);
+                setHistoryOpen(false);
+            }
+        },
+        [showToast, visitorId]
+    );
+
+    useEffect(() => {
+        if (!isOpen || !visitorId) return;
+        void loadHistory(deferredHistoryQuery);
+    }, [deferredHistoryQuery, isOpen, loadHistory, visitorId]);
+
+    useEffect(() => {
+        if (!isOpen || !visitorId || !sessionId) return;
+        void loadSession(sessionId);
+    }, [isOpen, loadSession, sessionId, visitorId]);
+
+    useEffect(() => {
+        return () => {
+            recognitionRef.current?.stop?.();
+            window.speechSynthesis?.cancel?.();
+        };
+    }, []);
+
+    const toggleChat = () => {
+        setBubblePulse(false);
+        setIsOpen((current) => {
+            const next = !current;
+            if (next) {
+                setUnreadCount(0);
+                setHasOpened(true);
+            }
+            return next;
+        });
     };
-  }, [isOpen]);
 
-  const toggleChat = () => {
-    if (!isOpen && !hasOpened) {
-      setMessages([GREETING_MESSAGE]);
-      setHasOpened(true);
-      setShowQuickReplies(true);
-    }
-    setIsOpen(!isOpen);
-    setBubblePulse(false);
-  };
-
-  const sendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
-
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date(),
+    const startNewChat = () => {
+        setHistoryOpen(false);
+        setMessages([]);
+        setSessionId(null);
+        setActiveSuggestions(mapIntentToSuggestions('greeting'));
+        setInput('');
+        setIsNearBottom(true);
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setShowQuickReplies(false);
-    setIsLoading(true);
+    const handleMessagesScroll = () => {
+        const container = messagesContainerRef.current;
+        if (!container) return;
+        const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        setIsNearBottom(distanceFromBottom < 140);
+    };
 
-    try {
-      const history = [...messages.filter((m) => m.id !== 'greeting'), userMessage].map(
-        (m) => ({
-          role: m.role,
-          content: m.content,
-        })
-      );
+    const copyToClipboard = async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            showToast('Copied to clipboard.', 'success');
+        } catch {
+            showToast('Copy failed on this device.', 'warning');
+        }
+    };
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history }),
-      });
+    const handleSpeak = (messageId: string, value: string) => {
+        if (!('speechSynthesis' in window)) {
+            showToast('Voice playback is not supported in this browser.', 'warning');
+            return;
+        }
 
-      const data = await response.json();
+        if (speakingMessageId === messageId) {
+            window.speechSynthesis.cancel();
+            setSpeakingMessageId(null);
+            return;
+        }
 
-      const botMessage: Message = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: data.reply || "I'm having trouble responding right now. Please try again!",
-        timestamp: new Date(),
-      };
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(value.replace(/[`*_>#-]/g, ' '));
+        utterance.lang = preferredLanguage === 'ur' ? 'ur-PK' : 'en-US';
+        utterance.onend = () => setSpeakingMessageId(null);
+        utterance.onerror = () => {
+            setSpeakingMessageId(null);
+            showToast('Voice playback failed.', 'warning');
+        };
+        setSpeakingMessageId(messageId);
+        window.speechSynthesis.speak(utterance);
+    };
 
-      setMessages((prev) => [...prev, botMessage]);
-    } catch {
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        role: 'assistant',
-        content: "Oops! Something went wrong. Please try again or contact our support team directly. 🙏",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const toggleListening = () => {
+        const RecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!RecognitionConstructor) {
+            showToast('Voice input is not supported in this browser.', 'warning');
+            return;
+        }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
-  };
+        if (isListening) {
+            recognitionRef.current?.stop?.();
+            return;
+        }
 
-  const formatTime = useCallback((date: Date) => {
-    return new Date(date).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }, []);
+        const recognition = new RecognitionConstructor();
+        recognition.lang = preferredLanguage === 'ur' ? 'ur-PK' : 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous = false;
+        recognition.maxAlternatives = 1;
 
-  return (
-    <>
-      {/* ── Chat Panel ── */}
-      <div
-        id="chat-widget-panel"
-        className={`
-          fixed z-[9999] will-change-transform
-          transition-all duration-200 ease-out
-          ${isOpen
-            ? 'opacity-100 translate-y-0 pointer-events-auto scale-100'
-            : 'opacity-0 translate-y-4 pointer-events-none scale-95'
-          }
-        `}
-        style={{
-          /* ── Mobile-first: full-screen takeover ── */
-          bottom: '0px',
-          right: '0px',
-          left: '0px',
-          top: '0px',
-        }}
-      >
-        {/* ── Responsive container ── */}
-        <div
-          className="
-            absolute
-            /* ─ Mobile: full screen ─ */
-            inset-0
-            /* ─ Tablet & Desktop: floating panel ─ */
-            md:inset-auto md:bottom-[100px] md:right-5
-            md:w-[380px] md:h-[540px] md:max-h-[calc(100vh-140px)]
-            lg:right-8
-          "
-        >
-          <div className="flex flex-col h-full md:rounded-2xl overflow-hidden shadow-2xl border-0 md:border md:border-white/10 backdrop-blur-xl bg-[#0a0a0a]/[0.98] md:bg-[#0a0a0a]/95">
-            {/* ── Header ── */}
-            <div
-              id="chat-widget-header"
-              className="flex items-center justify-between px-4 py-3 md:px-5 md:py-4 bg-gradient-to-r from-[#0d1f12] to-[#0a0a0a] border-b border-white/5 shrink-0"
-              style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-emerald-600 flex items-center justify-center shadow-lg shadow-primary/20">
-                    <Bot size={20} className="text-black" />
-                  </div>
-                  {/* Online pulse indicator */}
-                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-[#0a0a0a]">
-                    <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white tracking-wide font-heading">
-                    Arena Assistant
-                  </h3>
-                  <span className="text-[11px] text-emerald-400/80 flex items-center gap-1">
-                    <Sparkles size={10} />
-                    Online · AI-Powered
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <a
-                  href={WHATSAPP_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-10 h-10 md:w-8 md:h-8 rounded-lg bg-[#25D366]/10 hover:bg-[#25D366]/20 active:bg-[#25D366]/30 flex items-center justify-center transition-colors"
-                  aria-label="Chat on WhatsApp"
-                  title="Talk to a representative on WhatsApp"
-                >
-                  <Phone size={16} className="text-[#25D366] md:w-3.5 md:h-3.5" />
-                </a>
-                <button
-                  id="chat-widget-close"
-                  onClick={toggleChat}
-                  className="w-10 h-10 md:w-8 md:h-8 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 flex items-center justify-center transition-colors"
-                  aria-label="Close chat"
-                >
-                  <X size={18} className="text-white/60 md:w-4 md:h-4" />
-                </button>
-              </div>
-            </div>
+        recognition.onresult = (event: SpeechRecognitionEventLike) => {
+            const transcript = Array.from(event.results)
+                .map((result) => result[0]?.transcript || '')
+                .join('');
+            setInput(transcript.trimStart());
+        };
 
-            {/* ── Messages Area ── */}
-            <div
-              id="chat-widget-messages"
-              className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:px-4 md:py-4 space-y-3 md:space-y-4 scrollbar-hide"
-              style={{
-                background: 'linear-gradient(180deg, #0a0a0a 0%, #050505 100%)',
-                WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-up`}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-emerald-900/30 flex items-center justify-center mr-2 mt-1 shrink-0 border border-primary/10">
-                      <Bot size={14} className="text-primary" />
-                    </div>
-                  )}
-                  <div
-                    className={`
-                      max-w-[80%] md:max-w-[75%] px-3.5 py-2.5 md:px-4 text-[13px] leading-relaxed
-                      ${msg.role === 'user'
-                        ? 'bg-gradient-to-br from-primary to-emerald-600 text-black rounded-2xl rounded-br-md font-medium shadow-lg shadow-primary/10'
-                        : 'bg-white/[0.06] text-white/90 rounded-2xl rounded-bl-md border border-white/5'
-                      }
-                    `}
-                  >
-                    <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere">{msg.content}</p>
-                    <span
-                      className={`block text-[10px] mt-1.5 ${
-                        msg.role === 'user' ? 'text-black/50' : 'text-white/30'
-                      }`}
-                    >
-                      {formatTime(msg.timestamp)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+        recognition.onerror = () => {
+            setIsListening(false);
+            showToast('Voice input stopped unexpectedly.', 'warning');
+        };
 
-              {/* Typing Indicator */}
-              {isLoading && (
-                <div className="flex justify-start animate-fade-up">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary/20 to-emerald-900/30 flex items-center justify-center mr-2 mt-1 shrink-0 border border-primary/10">
-                    <Bot size={14} className="text-primary" />
-                  </div>
-                  <div className="bg-white/[0.06] border border-white/5 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+        recognition.onend = () => {
+            setIsListening(false);
+            recognitionRef.current = null;
+        };
 
-              {/* Quick Reply Chips */}
-              {showQuickReplies && messages.length <= 1 && (
-                <div className="flex flex-wrap gap-2 pt-2 animate-fade-up" style={{ animationDelay: '0.3s' }}>
-                  {QUICK_REPLIES.map((chip) => (
-                    <button
-                      key={chip.label}
-                      onClick={() => sendMessage(chip.value)}
-                      className="px-3.5 py-2.5 md:py-2 text-xs font-medium rounded-xl bg-white/[0.06] hover:bg-primary/20 active:bg-primary/30 border border-white/10 hover:border-primary/30 text-white/80 hover:text-primary transition-all duration-200 active:scale-95 select-none touch-manipulation"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+        recognitionRef.current = recognition;
+        setIsListening(true);
+        recognition.start();
+    };
 
-              <div ref={messagesEndRef} />
-            </div>
+    const handleSuggestion = async (suggestion: ChatSuggestion) => {
+        if (suggestion.type === 'prompt' && suggestion.prompt) {
+            await sendMessage(suggestion.prompt);
+            return;
+        }
 
-            {/* ── Input Area ── */}
-            <div
-              id="chat-widget-input"
-              className="px-3 py-2.5 md:px-4 md:py-3 bg-[#0a0a0a] border-t border-white/5 shrink-0"
-              style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}
-            >
-              <div className="flex items-center gap-2 bg-white/[0.04] rounded-xl border border-white/10 focus-within:border-primary/40 transition-colors px-3 py-0.5">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  disabled={isLoading}
-                  autoComplete="off"
-                  autoCorrect="on"
-                  enterKeyHint="send"
-                  className="flex-1 bg-transparent text-sm md:text-sm text-white placeholder:text-white/30 outline-none py-2.5 md:py-2 disabled:opacity-50"
-                  style={{ fontSize: '16px' }}  /* Prevents iOS zoom on focus */
-                  id="chat-widget-text-input"
-                />
-                <button
-                  id="chat-widget-send"
-                  onClick={() => sendMessage(input)}
-                  disabled={isLoading || !input.trim()}
-                  className={`
-                    w-10 h-10 md:w-8 md:h-8 rounded-lg flex items-center justify-center transition-all duration-200 shrink-0 touch-manipulation
-                    ${input.trim() && !isLoading
-                      ? 'bg-primary text-black hover:bg-primary/90 shadow-md shadow-primary/20 active:scale-90'
-                      : 'bg-white/5 text-white/20 cursor-not-allowed'
+        if (suggestion.href?.startsWith('/')) {
+            router.push(suggestion.href);
+            setIsOpen(false);
+            return;
+        }
+
+        if (suggestion.href) {
+            window.open(suggestion.href, '_blank', 'noopener,noreferrer');
+        }
+    };
+
+    const sendMessage = async (rawContent: string) => {
+        const content = rawContent.trim();
+        if (!content || isStreaming || !visitorId) return;
+
+        const assistantId = `assistant-${crypto.randomUUID()}`;
+        const userMessage: DisplayMessage = {
+            id: `user-${crypto.randomUUID()}`,
+            role: 'user',
+            content,
+            timestamp: new Date().toISOString(),
+            status: 'sent',
+        };
+
+        setInput('');
+        setHistoryOpen(false);
+        setIsStreaming(true);
+        setBubblePulse(false);
+
+        const baseMessages = messagesRef.current.map((message) => ({ ...message, suggestions: undefined }));
+        setMessages([
+            ...baseMessages,
+            userMessage,
+            {
+                id: assistantId,
+                role: 'assistant',
+                content: '',
+                timestamp: new Date().toISOString(),
+                status: 'streaming',
+            },
+        ]);
+
+        try {
+            const recentMessages = [...baseMessages, userMessage].slice(-10).map((message) => ({
+                id: message.id,
+                role: message.role,
+                content: message.content,
+            }));
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId,
+                    visitorId,
+                    message: content,
+                    pathname,
+                    locale: navigator.language,
+                    preferredLanguage,
+                    userName: user?.name,
+                    messages: recentMessages,
+                }),
+            });
+
+            if (!response.ok || !response.body) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.error || 'Unable to send the message');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let finalSuggestions = mapIntentToSuggestions('general');
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || '';
+
+                for (const rawEvent of events) {
+                    if (!rawEvent.trim()) continue;
+                    const { event, data } = parseSsePayload(rawEvent);
+                    if (!data) continue;
+
+                    const payload = JSON.parse(data);
+
+                    if (event === 'meta') {
+                        if (payload.sessionId) setSessionId(payload.sessionId);
+                        if (payload.intent) finalSuggestions = mapIntentToSuggestions(payload.intent);
                     }
-                  `}
-                  aria-label="Send message"
+
+                    if (event === 'chunk') {
+                        setMessages((current) =>
+                            current.map((message) =>
+                                message.id === assistantId
+                                    ? { ...message, content: `${message.content}${payload.text || ''}`, status: 'streaming' }
+                                    : message
+                            )
+                        );
+                    }
+
+                    if (event === 'end') {
+                        finalSuggestions = payload.suggestions || finalSuggestions;
+                        setActiveSuggestions(finalSuggestions);
+                        setMessages((current) =>
+                            current.map((message) =>
+                                message.id === assistantId
+                                    ? { ...message, status: 'sent', suggestions: finalSuggestions }
+                                    : message
+                            )
+                        );
+
+                        if (!isOpen) {
+                            setUnreadCount((count) => count + 1);
+                        }
+                    }
+                }
+            }
+
+            await loadHistory(deferredHistoryQuery);
+        } catch {
+            setMessages((current) =>
+                current.map((message) =>
+                    message.id === assistantId
+                        ? {
+                            ...message,
+                            status: 'error',
+                            content: 'The connection dropped before I could reply. Retry the message or open WhatsApp support.',
+                            retryPrompt: content,
+                            suggestions: [
+                                {
+                                    id: 'chat-error-support',
+                                    label: 'Open WhatsApp support',
+                                    type: 'support',
+                                    href: WHATSAPP_URL,
+                                },
+                            ],
+                        }
+                        : message
+                )
+            );
+            showToast('Reply failed. Retry or switch to WhatsApp support.', 'error');
+        } finally {
+            setIsStreaming(false);
+        }
+    };
+
+    const handleComposerKeyDown = async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            await sendMessage(input);
+        }
+    };
+
+    const currentLanguageLabel =
+        preferredLanguage === 'auto' ? 'Auto' : preferredLanguage === 'ur' ? 'Urdu' : 'English';
+
+    if (isAdminPage) return null;
+
+    return (
+        <>
+            <div
+                className={cn(
+                    'fixed inset-0 z-[9999] transition duration-200',
+                    isOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+                )}
+            >
+                <div className="absolute inset-0 bg-black/55 backdrop-blur-sm md:hidden" onClick={toggleChat} />
+                <div
+                    className={cn(
+                        'absolute inset-0 md:inset-auto md:bottom-[98px] md:right-5 md:h-[620px] md:max-h-[calc(100vh-132px)] md:w-[440px] lg:right-8',
+                        isOpen ? 'translate-y-0 scale-100' : 'translate-y-4 scale-[0.98]'
+                    )}
                 >
-                  <Send size={16} />
-                </button>
-              </div>
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 mt-2 py-1.5 md:py-1 text-[11px] text-[#25D366]/70 hover:text-[#25D366] active:text-[#25D366] transition-colors touch-manipulation"
-              >
-                <Phone size={10} />
-                Talk to a representative on WhatsApp
-              </a>
+                    <div className="relative flex h-full overflow-hidden border-0 bg-[#070707]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl md:rounded-[28px] md:border md:border-white/8">
+                        <ChatHistoryPanel
+                            sessions={historySessions}
+                            isLoading={isHistoryLoading}
+                            isOpen={historyOpen}
+                            query={historyQuery}
+                            currentSessionId={sessionId}
+                            onQueryChange={setHistoryQuery}
+                            onSelect={(targetSessionId) => void loadSession(targetSessionId)}
+                            onNewChat={startNewChat}
+                            onClose={() => setHistoryOpen(false)}
+                        />
+
+                        <div
+                            className={cn(
+                                'relative flex min-w-0 flex-1 flex-col transition-[padding] duration-200',
+                                historyOpen ? 'md:pl-[320px]' : ''
+                            )}
+                        >
+                            <div className="border-b border-white/8 bg-gradient-to-r from-[#0d1f12] via-[#08120c] to-[#070707] px-4 py-4 md:px-5">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_12px_24px_rgba(34,197,94,0.25)]">
+                                            <Bot className="h-5 w-5" />
+                                            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#08120c] bg-emerald-400">
+                                                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-70" />
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p className="font-heading text-sm font-semibold tracking-wide text-white">
+                                                Arena Assistant
+                                            </p>
+                                            <div className="mt-1 flex items-center gap-2 text-[11px] text-emerald-300/85">
+                                                <Sparkles className="h-3 w-3" />
+                                                <span>Streaming, persistent, AI-assisted support</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setHistoryOpen((current) => !current)}
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            aria-label="Open conversation history"
+                                        >
+                                            <History className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={startNewChat}
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            aria-label="Start a new conversation"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
+                                        <a
+                                            href={WHATSAPP_URL}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/12 text-[#25D366] transition hover:bg-[#25D366]/18"
+                                            aria-label="Open WhatsApp support"
+                                        >
+                                            <Phone className="h-4 w-4" />
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={toggleChat}
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            aria-label="Close chat"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                ref={messagesContainerRef}
+                                onScroll={handleMessagesScroll}
+                                className="relative flex-1 overflow-y-auto px-4 py-4 scrollbar-hide md:px-5"
+                                style={{
+                                    background:
+                                        'radial-gradient(circle at top, rgba(34,197,94,0.08), transparent 28%), linear-gradient(180deg, #090909 0%, #050505 100%)',
+                                }}
+                            >
+                                {isSessionLoading ? (
+                                    <div className="space-y-4 pt-2">
+                                        {Array.from({ length: 3 }).map((_, index) => (
+                                            <div key={index} className="flex gap-3">
+                                                <div className="h-8 w-8 rounded-2xl bg-white/8" />
+                                                <div className="flex-1 rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                                                    <div className="h-3 w-1/3 animate-pulse rounded-full bg-white/8" />
+                                                    <div className="mt-3 h-3 w-full animate-pulse rounded-full bg-white/7" />
+                                                    <div className="mt-2 h-3 w-5/6 animate-pulse rounded-full bg-white/7" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : messages.length ? (
+                                    <div aria-live="polite">
+                                        {messages.map((message, index) => (
+                                            <ChatMessageBubble
+                                                key={message.id}
+                                                message={message}
+                                                groupedWithPrevious={messages[index - 1]?.role === message.role}
+                                                onCopy={(value) => void copyToClipboard(value)}
+                                                onRetry={(_id, prompt) => void sendMessage(prompt)}
+                                                onSpeak={handleSpeak}
+                                                onSuggestion={(suggestion) => void handleSuggestion(suggestion)}
+                                                isSpeaking={speakingMessageId === message.id}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="mx-auto max-w-[360px] pt-8 text-center md:pt-12">
+                                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-gradient-to-br from-primary to-emerald-500 text-black shadow-[0_16px_34px_rgba(34,197,94,0.18)]">
+                                            <MessageCircle className="h-7 w-7" />
+                                        </div>
+                                        <h3 className="mt-5 font-heading text-2xl font-semibold text-white">
+                                            {user?.name ? `Welcome back, ${user.name}` : 'Ask anything about Arena360'}
+                                        </h3>
+                                        <p className="mt-3 text-sm leading-7 text-white/55">
+                                            Get booking help, pricing guidance, live-path navigation, and support handoff without leaving the page.
+                                        </p>
+                                        <div className="mt-6 rounded-[24px] border border-white/8 bg-white/[0.04] p-4 text-left">
+                                            <p className="text-xs uppercase tracking-[0.24em] text-primary/80">
+                                                What changed
+                                            </p>
+                                            <p className="mt-2 text-sm leading-7 text-white/75">
+                                                This chat now streams replies, remembers past sessions, supports voice input, and renders structured markdown and code.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            <div className="border-t border-white/8 bg-[#070707] px-4 pb-4 pt-3 md:px-5">
+                                <div className="flex flex-wrap gap-2">
+                                    {(messages.length ? activeSuggestions : mapIntentToSuggestions('greeting')).map((suggestion) => (
+                                        <button
+                                            key={suggestion.id}
+                                            type="button"
+                                            onClick={() => void handleSuggestion(suggestion)}
+                                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/80 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                        >
+                                            {suggestion.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="mt-3 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] shadow-[0_18px_38px_rgba(0,0,0,0.25)]">
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={input}
+                                        onChange={(event) => setInput(event.target.value)}
+                                        onKeyDown={handleComposerKeyDown}
+                                        placeholder="Ask about booking, pricing, facilities, or support..."
+                                        disabled={isStreaming}
+                                        rows={1}
+                                        className="max-h-[140px] min-h-[56px] w-full resize-none bg-transparent px-4 py-4 text-[15px] leading-7 text-white outline-none placeholder:text-white/28 disabled:opacity-60"
+                                        style={{ fontSize: '16px' }}
+                                    />
+                                    <div className="flex items-center justify-between gap-3 border-t border-white/8 px-3 py-3">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={toggleListening}
+                                                className={cn(
+                                                    'flex h-10 w-10 items-center justify-center rounded-full border text-white/70 transition',
+                                                    isListening
+                                                        ? 'border-primary/40 bg-primary/15 text-primary'
+                                                        : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:text-white'
+                                                )}
+                                                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                                            >
+                                                <Mic className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setPreferredLanguage((current) =>
+                                                        current === 'auto' ? 'en' : current === 'en' ? 'ur' : 'auto'
+                                                    )
+                                                }
+                                                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 text-xs font-medium text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+                                            >
+                                                <Globe className="h-3.5 w-3.5" />
+                                                {currentLanguageLabel}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="hidden text-[11px] text-white/35 md:inline">
+                                                Enter to send, Shift+Enter for a new line
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => void sendMessage(input)}
+                                                disabled={!input.trim() || isStreaming}
+                                                className={cn(
+                                                    'flex h-11 w-11 items-center justify-center rounded-full transition',
+                                                    input.trim() && !isStreaming
+                                                        ? 'bg-gradient-to-br from-primary to-emerald-500 text-black shadow-[0_14px_28px_rgba(34,197,94,0.24)] hover:brightness-105'
+                                                        : 'bg-white/6 text-white/20'
+                                                )}
+                                                aria-label="Send message"
+                                            >
+                                                <Send className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between text-[11px] text-white/35">
+                                    <span>{isStreaming ? 'Arena Assistant is streaming a reply...' : 'Chat history persists when available.'}</span>
+                                    <a
+                                        href={WHATSAPP_URL}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[#25D366]/80 transition hover:text-[#25D366]"
+                                    >
+                                        Switch to WhatsApp
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* ── Floating Chat Bubble ── */}
-      <button
-        id="chat-widget-bubble"
-        onClick={toggleChat}
-        className={`
-          fixed z-[9999] w-14 h-14 rounded-full
-          bg-gradient-to-br from-primary to-emerald-600
-          text-black shadow-xl shadow-primary/30
-          flex items-center justify-center
-          hover:scale-110 active:scale-95
-          transition-all duration-200 ease-out
-          will-change-transform touch-manipulation
-          ${bubblePulse ? 'animate-bounce' : ''}
-          ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}
-          bottom-[88px] right-4
-          md:bottom-8 md:right-8
-        `}
-        aria-label={isOpen ? 'Close chat' : 'Open chat'}
-      >
-        <div className={`absolute inset-0 rounded-full bg-primary/30 ${bubblePulse ? 'animate-ping' : ''}`} />
-        <div className="relative">
-          <MessageCircle size={24} />
-        </div>
+            <button
+                onClick={toggleChat}
+                className={cn(
+                    'fixed bottom-[88px] right-4 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_22px_34px_rgba(34,197,94,0.32)] transition duration-200 hover:scale-105 active:scale-95 md:bottom-8 md:right-8',
+                    bubblePulse && 'animate-bounce',
+                    isOpen && 'pointer-events-none scale-0 opacity-0'
+                )}
+                aria-label={isOpen ? 'Close chat' : 'Open chat'}
+            >
+                <span className={cn('absolute inset-0 rounded-full bg-primary/30', bubblePulse && 'animate-ping')} />
+                <MessageCircle className="relative h-6 w-6" />
+                {!isOpen && (unreadCount > 0 || !hasOpened) ? (
+                    <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#050505] bg-red-500 text-[10px] font-bold text-white">
+                        {unreadCount > 0 ? Math.min(unreadCount, 9) : 1}
+                    </span>
+                ) : null}
+            </button>
 
-        {/* Notification badge */}
-        {!isOpen && !hasOpened && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center border-2 border-[#050505] animate-pulse">
-            1
-          </span>
-        )}
-      </button>
-    </>
-  );
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.visible}
+                onClose={() => setToast((current) => ({ ...current, visible: false }))}
+            />
+        </>
+    );
 }

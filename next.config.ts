@@ -6,6 +6,19 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://generativelanguage.googleapis.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://images.unsplash.com https://lh3.googleusercontent.com https://cdn.shortpixel.ai https://padelcafe.pk https://scontent.flhe5-1.fna.fbcdn.net https://i.postimg.cc",
+      "connect-src 'self' https://generativelanguage.googleapis.com https://graph.facebook.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      "frame-ancestors 'none'",
+    ].join('; '),
+  },
 ];
 
 const nextConfig: NextConfig = {
@@ -71,9 +84,7 @@ const nextConfig: NextConfig = {
     optimizeCss: true, // Optimize CSS loading
   },
 
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // typescript: { ignoreBuildErrors: true } — REMOVED (audit fix: type errors must not be suppressed)
 };
 
 export default nextConfig;

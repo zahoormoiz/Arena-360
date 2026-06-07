@@ -5,7 +5,7 @@
  */
 
 type LogLevel = 'info' | 'warn' | 'error';
-type EventCategory = 'booking' | 'payment' | 'admin' | 'auth' | 'system';
+type EventCategory = 'booking' | 'payment' | 'admin' | 'auth' | 'chat' | 'system';
 
 interface LogEntry {
     timestamp: string;
@@ -65,6 +65,9 @@ export const logAdmin = (event: string, data?: Record<string, any>, userId?: str
 
 export const logAuth = (event: string, data?: Record<string, any>, userId?: string, ip?: string) =>
     logEvent('info', 'auth', event, data, userId, ip);
+
+export const logChat = (event: string, data?: Record<string, any>, userId?: string, ip?: string) =>
+    logEvent('info', 'chat', event, data, userId, ip);
 
 export const logError = (category: EventCategory, event: string, data?: Record<string, any>) =>
     logEvent('error', category, event, data);
