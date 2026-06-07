@@ -174,12 +174,12 @@ export const chatMessageSchema = z.object({
 });
 
 export const chatRequestSchema = z.object({
-    sessionId: z.string().trim().min(8).max(120).optional(),
+    sessionId: z.string().trim().min(8).max(120).optional().nullable().transform(v => v ?? undefined),
     visitorId: z.string().trim().min(12).max(120),
     message: z.string().trim().min(1).max(1500),
     pathname: z.string().trim().max(160).optional().default('/'),
-    locale: z.string().trim().max(24).optional(),
-    userName: z.string().trim().max(60).optional(),
+    locale: z.string().trim().max(24).optional().nullable().transform(v => v ?? undefined),
+    userName: z.string().trim().max(60).optional().nullable().transform(v => v ?? undefined),
     preferredLanguage: chatLanguageSchema.optional().default('auto'),
     messages: z.array(chatMessageSchema).max(20).optional().default([]),
 });
