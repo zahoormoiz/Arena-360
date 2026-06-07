@@ -591,14 +591,14 @@ export default function ChatWidget() {
                     isOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
                 )}
             >
-                <div className="absolute inset-0 bg-black/55 backdrop-blur-sm md:hidden" onClick={toggleChat} />
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm md:hidden" onClick={toggleChat} />
                 <div
                     className={cn(
                         'absolute inset-0 md:inset-auto md:bottom-[98px] md:right-5 md:h-[620px] md:max-h-[calc(100vh-132px)] md:w-[440px] lg:right-8',
                         isOpen ? 'translate-y-0 scale-100' : 'translate-y-4 scale-[0.98]'
                     )}
                 >
-                    <div className="relative flex h-full overflow-hidden border-0 bg-[#070707]/95 shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl md:rounded-[28px] md:border md:border-white/8">
+                    <div className="relative flex h-full overflow-hidden border-0 bg-[#070707] shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl md:rounded-[28px] md:border md:border-white/8">
                         <ChatHistoryPanel
                             sessions={historySessions}
                             isLoading={isHistoryLoading}
@@ -617,7 +617,7 @@ export default function ChatWidget() {
                                 historyOpen ? 'md:pl-[320px]' : ''
                             )}
                         >
-                            <div className="border-b border-white/8 bg-gradient-to-r from-[#0d1f12] via-[#08120c] to-[#070707] px-4 py-4 md:px-5">
+                            <div className="border-b border-white/8 bg-gradient-to-r from-[#0d1f12] via-[#08120c] to-[#070707] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top,16px))] md:px-5 md:pt-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-center gap-3">
                                         <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_12px_24px_rgba(34,197,94,0.25)]">
@@ -712,30 +712,22 @@ export default function ChatWidget() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="mx-auto max-w-[360px] pt-8 text-center md:pt-12">
-                                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-gradient-to-br from-primary to-emerald-500 text-black shadow-[0_16px_34px_rgba(34,197,94,0.18)]">
-                                            <MessageCircle className="h-7 w-7" />
+                                    <div className="mx-auto max-w-[360px] pt-6 text-center md:pt-12">
+                                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-primary to-emerald-500 text-black shadow-[0_16px_34px_rgba(34,197,94,0.18)] md:h-16 md:w-16 md:rounded-[24px]">
+                                            <MessageCircle className="h-6 w-6 md:h-7 md:w-7" />
                                         </div>
-                                        <h3 className="mt-5 font-heading text-2xl font-semibold text-white">
+                                        <h3 className="mt-4 font-heading text-xl font-semibold text-white md:mt-5 md:text-2xl">
                                             {user?.name ? `Welcome back, ${user.name}` : 'Ask anything about Arena360'}
                                         </h3>
-                                        <p className="mt-3 text-sm leading-7 text-white/55">
-                                            Get booking help, pricing guidance, live-path navigation, and support handoff without leaving the page.
+                                        <p className="mt-2 text-sm leading-6 text-white/55 md:mt-3 md:leading-7">
+                                            Booking help, pricing, facilities info, and support — all without leaving the page.
                                         </p>
-                                        <div className="mt-6 rounded-[24px] border border-white/8 bg-white/[0.04] p-4 text-left">
-                                            <p className="text-xs uppercase tracking-[0.24em] text-primary/80">
-                                                What changed
-                                            </p>
-                                            <p className="mt-2 text-sm leading-7 text-white/75">
-                                                This chat now streams replies, remembers past sessions, supports voice input, and renders structured markdown and code.
-                                            </p>
-                                        </div>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>
 
-                            <div className="border-t border-white/8 bg-[#070707] px-4 pb-4 pt-3 md:px-5">
+                            <div className="border-t border-white/8 bg-[#070707] px-4 pb-[max(1rem,env(safe-area-inset-bottom,16px))] pt-3 md:px-5 md:pb-4">
                                 <div className="flex flex-wrap gap-2">
                                     {(messages.length ? activeSuggestions : mapIntentToSuggestions('greeting')).map((suggestion) => (
                                         <button
@@ -829,7 +821,7 @@ export default function ChatWidget() {
             <button
                 onClick={toggleChat}
                 className={cn(
-                    'fixed bottom-[88px] right-4 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_22px_34px_rgba(34,197,94,0.32)] transition duration-200 hover:scale-105 active:scale-95 md:bottom-8 md:right-8',
+                    'fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] right-4 z-[9999] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_22px_34px_rgba(34,197,94,0.32)] transition duration-200 hover:scale-105 active:scale-95 md:bottom-8 md:right-8',
                     bubblePulse && 'animate-bounce',
                     isOpen && 'pointer-events-none scale-0 opacity-0'
                 )}
