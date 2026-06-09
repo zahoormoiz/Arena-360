@@ -17,6 +17,7 @@ interface CodeBlockProps {
 
 const INLINE_PATTERN = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
 const CODE_FENCE_PATTERN = /```([\w-]+)?\n?([\s\S]*?)```/g;
+const TABLE_PATTERN = /(\|.+\|\n\|[\s:|-]+\|\n(?:\|.+\|\n?)*)/g;
 const KEYWORD_PATTERN =
     /\b(const|let|var|function|return|if|else|for|while|switch|case|break|continue|try|catch|finally|throw|async|await|import|export|from|new|class|extends|interface|type|public|private)\b/g;
 const NUMBER_PATTERN = /\b\d+(?:\.\d+)?\b/g;
@@ -136,9 +137,70 @@ function CodeBlock({ code, language, onCopy }: CodeBlockProps) {
                     Copy
                 </button>
             </div>
-            <pre className="overflow-x-auto p-4 text-[12px] leading-6 text-zinc-200">
+            <pre className="overflow-x-auto p-4 text-[12px] leading-6 text-zinc-200 scrollbar-thin">
                 <code>{highlightCode(code)}</code>
             </pre>
+        </div>
+    );
+}
+
+function MarkdownTable({ tableMarkdown }: { tableMarkdown: string }) {
+    const lines = tableMarkdown.trim().split('\n');
+    if (lines.length < 2) return null;
+
+    // Parse header
+    const headerLine = lines[0];
+    const headers = headerLine.split('|').filter((h) => h.trim()).map((h) => h.trim());
+
+    // Parse alignment from separator row
+    const separatorLine = lines[1];
+    const alignments = separatorLine.split('|').filter((s) => s.trim()).map((s) => {
+        const trimmed = s.trim();
+        if (trimmed.startsWith(':') && trimmed.endsWith(':')) return 'center';
+        if (trimmed.endsWith(':')) return 'right';
+        if (trimmed.startsWith(':')) return 'left';
+        return 'left';
+    });
+
+    // Parse body rows
+    const rows = lines.slice(2)
+        .filter((line) => line.trim())
+        .map((line) => 
+            line.split('|').filter((cell) => cell.trim()).map((cell) => cell.trim())
+        );
+
+    return (
+        <div className="my-4 w-full overflow-x-auto rounded-lg border border-white/10 bg-white/[0.02] scrollbar-thin">
+            <table className="w-full border-collapse text-sm">
+                <thead>
+                    <tr>
+                        {headers.map((header, idx) => (
+                            <th
+                                key={idx}
+                                className="border-b border-white/10 bg-white/[0.05] px-3 py-2 text-left font-semibold text-white"
+                                style={{ textAlign: (alignments[idx] as any) || 'left' }}
+                            >
+                                {renderInline(header, `header-${idx}`)}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row, rowIdx) => (
+                        <tr key={rowIdx} className="border-b border-white/5 hover:bg-white/[0.03] transition">
+                            {row.map((cell, cellIdx) => (
+                                <td
+                                    key={cellIdx}
+                                    className="px-3 py-2 text-white/75"
+                                    style={{ textAlign: (alignments[cellIdx] as any) || 'left' }}
+                                >
+                                    {renderInline(cell, `cell-${rowIdx}-${cellIdx}`)}
+                                </td>
+                            ))}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
@@ -203,10 +265,37 @@ export default function ChatMarkdown({ content, onCopy }: ChatMarkdownProps) {
     let lastIndex = 0;
     let blockKey = 0;
 
-    for (const match of content.matchAll(CODE_FENCE_PATTERN)) {
+    // Handle tables first
+    const tableMatches = Array.from(content.matchAll(TABLE_PATTERN));
+    for (const tableMatch of tableMatches) {
+        if (tableMatch.index === undefined) continue;
+
+        const before = content.slice(lastIndex, tableMatch.index);
+        if (before.trim()) {
+            for (const paragraph of before.split(/\n{2,}/)) {
+                const block = renderBlock(paragraph, `block-${blockKey++}`);
+                if (block) blocks.push(block);
+            }
+        }
+
+        blocks.push(
+            <MarkdownTable
+                key={`table-${blockKey++}`}
+                tableMarkdown={tableMatch[0]}
+            />
+        );
+
+        lastIndex = tableMatch.index + tableMatch[0].length;
+    }
+
+    // Handle code blocks
+    const remaining = content.slice(lastIndex);
+    let processIndex = 0;
+
+    for (const match of remaining.matchAll(CODE_FENCE_PATTERN)) {
         if (match.index === undefined) continue;
 
-        const before = content.slice(lastIndex, match.index);
+        const before = remaining.slice(processIndex, match.index);
         if (before.trim()) {
             for (const paragraph of before.split(/\n{2,}/)) {
                 const block = renderBlock(paragraph, `block-${blockKey++}`);
@@ -223,10 +312,10 @@ export default function ChatMarkdown({ content, onCopy }: ChatMarkdownProps) {
             />
         );
 
-        lastIndex = match.index + match[0].length;
+        processIndex = match.index + match[0].length;
     }
 
-    const tail = content.slice(lastIndex);
+    const tail = remaining.slice(processIndex);
     if (tail.trim()) {
         for (const paragraph of tail.split(/\n{2,}/)) {
             const block = renderBlock(paragraph, `block-${blockKey++}`);

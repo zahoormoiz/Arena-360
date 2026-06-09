@@ -617,39 +617,41 @@ export default function ChatWidget() {
                                 historyOpen ? 'md:pl-[320px]' : ''
                             )}
                         >
-                            <div className="border-b border-white/8 bg-gradient-to-r from-[#0d1f12] via-[#08120c] to-[#070707] px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top,16px))] md:px-5 md:pt-4">
+                            <div className="border-b border-white/8 bg-gradient-to-r from-[#0d1f12]/70 via-[#08120c]/70 to-[#070707]/70 backdrop-blur-sm px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top,16px))] md:px-5 md:pt-4">
                                 <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_12px_24px_rgba(34,197,94,0.25)]">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-600 text-black shadow-[0_12px_24px_rgba(34,197,94,0.25)]">
                                             <Bot className="h-5 w-5" />
-                                            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#08120c] bg-emerald-400">
-                                                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-70" />
+                                            <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#08120c] bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]">
+                                                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-pulse opacity-75" />
                                             </span>
                                         </div>
-                                        <div>
+                                        <div className="min-w-0 flex-1">
                                             <p className="font-heading text-sm font-semibold tracking-wide text-white">
                                                 Arena Assistant
                                             </p>
-                                            <div className="mt-1 flex items-center gap-2 text-[11px] text-emerald-300/85">
-                                                <Sparkles className="h-3 w-3" />
-                                                <span>Streaming, persistent, AI-assisted support</span>
+                                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-emerald-300/85">
+                                                <Sparkles className="h-3 w-3 shrink-0" />
+                                                <span className="truncate">AI-powered support</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 shrink-0">
                                         <button
                                             type="button"
                                             onClick={() => setHistoryOpen((current) => !current)}
-                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white focus-ring-visible"
                                             aria-label="Open conversation history"
+                                            title="Conversation history"
                                         >
                                             <History className="h-4 w-4" />
                                         </button>
                                         <button
                                             type="button"
                                             onClick={startNewChat}
-                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white focus-ring-visible"
                                             aria-label="Start a new conversation"
+                                            title="New conversation"
                                         >
                                             <Plus className="h-4 w-4" />
                                         </button>
@@ -657,16 +659,18 @@ export default function ChatWidget() {
                                             href={WHATSAPP_URL}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/12 text-[#25D366] transition hover:bg-[#25D366]/18"
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#25D366]/12 text-[#25D366] transition hover:bg-[#25D366]/18 focus-ring-visible"
                                             aria-label="Open WhatsApp support"
+                                            title="WhatsApp support"
                                         >
                                             <Phone className="h-4 w-4" />
                                         </a>
                                         <button
                                             type="button"
                                             onClick={toggleChat}
-                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white focus-ring-visible"
                                             aria-label="Close chat"
+                                            title="Close"
                                         >
                                             <X className="h-4 w-4" />
                                         </button>
@@ -686,12 +690,12 @@ export default function ChatWidget() {
                                 {isSessionLoading ? (
                                     <div className="space-y-4 pt-2">
                                         {Array.from({ length: 3 }).map((_, index) => (
-                                            <div key={index} className="flex gap-3">
-                                                <div className="h-8 w-8 rounded-2xl bg-white/8" />
-                                                <div className="flex-1 rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
-                                                    <div className="h-3 w-1/3 animate-pulse rounded-full bg-white/8" />
-                                                    <div className="mt-3 h-3 w-full animate-pulse rounded-full bg-white/7" />
-                                                    <div className="mt-2 h-3 w-5/6 animate-pulse rounded-full bg-white/7" />
+                                            <div key={index} className="flex gap-3 animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/8 to-white/4 animate-pulse" />
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="h-3 w-1/3 rounded-full bg-white/8 animate-pulse" />
+                                                    <div className="h-3 w-full rounded-full bg-white/6 animate-pulse" />
+                                                    <div className="h-3 w-5/6 rounded-full bg-white/6 animate-pulse" />
                                                 </div>
                                             </div>
                                         ))}
@@ -712,29 +716,48 @@ export default function ChatWidget() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="mx-auto max-w-[360px] pt-6 text-center md:pt-12">
+                                    <div className="mx-auto max-w-[320px] pt-6 text-center md:pt-12 animate-fade-in">
                                         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[20px] bg-gradient-to-br from-primary to-emerald-500 text-black shadow-[0_16px_34px_rgba(34,197,94,0.18)] md:h-16 md:w-16 md:rounded-[24px]">
                                             <MessageCircle className="h-6 w-6 md:h-7 md:w-7" />
                                         </div>
-                                        <h3 className="mt-4 font-heading text-xl font-semibold text-white md:mt-5 md:text-2xl">
-                                            {user?.name ? `Welcome back, ${user.name}` : 'Ask anything about Arena360'}
-                                        </h3>
-                                        <p className="mt-2 text-sm leading-6 text-white/55 md:mt-3 md:leading-7">
-                                            Booking help, pricing, facilities info, and support — all without leaving the page.
+                                        <h2 className="mt-4 font-heading text-lg font-semibold text-white md:mt-5 md:text-xl">
+                                            {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Ask anything about Arena360'}
+                                        </h2>
+                                        <p className="mt-2 text-xs leading-6 text-white/50 md:mt-3 md:text-sm md:leading-7">
+                                            Booking help, pricing, facilities info, and support — all in one chat.
                                         </p>
+                                        <div className="mt-6 space-y-2">
+                                            <p className="text-[11px] font-medium text-white/40 uppercase tracking-wide">Popular questions:</p>
+                                            <div className="space-y-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void sendMessage('What sports facilities do you have?')}
+                                                    className="w-full rounded-lg border border-white/8 bg-white/[0.04] px-3 py-2 text-xs text-white/70 transition hover:bg-white/[0.08] hover:text-white text-left"
+                                                >
+                                                    What sports facilities do you have?
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void sendMessage('How do I book a slot?')}
+                                                    className="w-full rounded-lg border border-white/8 bg-white/[0.04] px-3 py-2 text-xs text-white/70 transition hover:bg-white/[0.08] hover:text-white text-left"
+                                                >
+                                                    How do I book a slot?
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                                 <div ref={messagesEndRef} />
                             </div>
 
                             <div className="border-t border-white/8 bg-[#070707] px-4 pb-[max(1rem,env(safe-area-inset-bottom,16px))] pt-3 md:px-5 md:pb-4">
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:overflow-visible">
                                     {(messages.length ? activeSuggestions : mapIntentToSuggestions('greeting')).map((suggestion) => (
                                         <button
                                             key={suggestion.id}
                                             type="button"
                                             onClick={() => void handleSuggestion(suggestion)}
-                                            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-white/80 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                                            className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white/70 transition whitespace-nowrap hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                                         >
                                             {suggestion.label}
                                         </button>
@@ -758,12 +781,13 @@ export default function ChatWidget() {
                                                 type="button"
                                                 onClick={toggleListening}
                                                 className={cn(
-                                                    'flex h-10 w-10 items-center justify-center rounded-full border text-white/70 transition',
+                                                    'flex h-10 w-10 items-center justify-center rounded-full border text-white/70 transition focus:ring-2 focus:ring-primary/50 focus:outline-none',
                                                     isListening
                                                         ? 'border-primary/40 bg-primary/15 text-primary'
                                                         : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:text-white'
                                                 )}
                                                 aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                                                title={isListening ? 'Stop listening' : 'Click to speak your message'}
                                             >
                                                 <Mic className="h-4 w-4" />
                                             </button>
@@ -774,10 +798,12 @@ export default function ChatWidget() {
                                                         current === 'auto' ? 'en' : current === 'en' ? 'ur' : 'auto'
                                                     )
                                                 }
-                                                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 text-xs font-medium text-white/70 transition hover:bg-white/[0.08] hover:text-white"
+                                                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 text-xs font-medium text-white/70 transition focus:ring-2 focus:ring-primary/50 focus:outline-none hover:bg-white/[0.08] hover:text-white"
+                                                aria-label={`Language: ${currentLanguageLabel}. Click to change.`}
+                                                title="Change language"
                                             >
                                                 <Globe className="h-3.5 w-3.5" />
-                                                {currentLanguageLabel}
+                                                <span className="hidden sm:inline">{currentLanguageLabel}</span>
                                             </button>
                                         </div>
                                         <div className="flex items-center gap-2">
